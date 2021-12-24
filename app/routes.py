@@ -1,26 +1,27 @@
-from flask import render_template, flash, redirect, url_for
+from flask import render_template, flash, redirect, url_for, request
 from app import app
 from app.forms import LoginForm
+import requests
+from config import omsNumber, birthDate
 
 
-@app.route("/")
-@app.route("/index")
-def index():
-    user = {"username": "Sveta Afanaseva"}
-    posts = [
-        {"author": {"username": "John"}, "body": "Beautiful day in Portland!"},
-        {"author": {"username": "Susan"}, "body": "The Avengers movie was so cool!"},
-        {
-            "author": {"username": "Ипполит"},
-            "body": "Какая гадость эта ваша заливная рыба!!",
-        },
-        {
-            "author": {"username": "Винни-Пух"},
-            "body": "По-моему, пчелы что-то подозревают!",
-        },
-        {"author": {"username": "Yoda"}, "body": "May the Force be with you!"},
-    ]
-    return render_template("index.html", title="Home", user=user, posts=posts)
+@app.route("/", methods=["GET"])
+@app.route("/specialities", methods=["GET"])
+def get_specialities():
+    r = requests.post(
+        "https://emias.info/api/new/eip5orch?getSpecialitiesInfo", 
+        json={
+            "jsonrpc":"2.0","id":"","method":"getSpecialitiesInfo",
+            "params":{"omsNumber": omsNumber,"birthDate": birthDate}
+        } 
+    )
+    results = r.json()['result']
+    specialities = []
+    for result in results:
+        specialities.append(result['name'])
+
+    return str(specialities)
+    # return render_template("index.html", title="Home", user=user, posts=posts)
 
 
 @app.route("/login", methods=["GET", "POST"])
