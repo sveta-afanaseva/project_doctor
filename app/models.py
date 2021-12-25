@@ -5,20 +5,22 @@ from app import db
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True)
-    email = db.Column(db.String(120), index=True, unique=True)
-    password_hash = db.Column(db.String(128))
-    posts = db.relationship("Post", backref="author", lazy="dynamic")
+    omsNumber = db.Column(db.String(16), unique=True)
+    birthDate = db.Column(db.Date)
+    email = db.Column(db.String(120), unique=True)
+    appointments = db.relationship("Appointment", backref="user", lazy="dynamic")
 
     def __repr__(self) -> str:
-        return f"<User {self.username}>"
+        return f"<User {self.omsNumber}>"
 
 
-class Post(db.Model):
+class Appointment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    body = db.Column(db.String(140))
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    availableResourceId = db.Column(db.Integer)
+    complexResourceId = db.Column(db.Integer)
+    startTime = db.Column(db.DateTime)
+    endTime = db.Column(db.DateTime)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
     def __repr__(self):
-        return f"<Post {self.body}>"
+        return f"<Appointment {self.availableResourceId}>"
