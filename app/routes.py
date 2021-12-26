@@ -5,14 +5,16 @@ import requests
 from config import omsNumber, birthDate
 
 
-@app.route("/", methods=["GET"])
 @app.route("/specialities", methods=["GET"])
 def get_specialities():
+    oms_number = request.form['oms_number']
+    birth_date = request.form['birth_date']
+    print(oms_number, birth_date)
     r = requests.post(
         "https://emias.info/api/new/eip5orch?getSpecialitiesInfo", 
         json={
             "jsonrpc":"2.0","id":"","method":"getSpecialitiesInfo",
-            "params":{"omsNumber": omsNumber,"birthDate": birthDate}
+            "params":{"omsNumber": oms_number,"birthDate": birth_date}
         } 
     )
     results = r.json()['result']
