@@ -2,17 +2,15 @@ from flask import render_template, flash, redirect, url_for, request
 from app import app
 from app.forms import LoginForm
 import requests
-from config import omsNumber, birthDate
 
 
-@app.route("/", methods=["GET"])
-@app.route("/specialities", methods=["GET"])
+@app.route("/specialities", methods=["GET", "POST"])
 def get_specialities():
     r = requests.post(
         "https://emias.info/api/new/eip5orch?getSpecialitiesInfo", 
         json={
             "jsonrpc":"2.0","id":"","method":"getSpecialitiesInfo",
-            "params":{"omsNumber": omsNumber,"birthDate": birthDate}
+            "params":{"omsNumber": oms_number,"birthDate": birth_date}
         } 
     )
     results = r.json()['result']
