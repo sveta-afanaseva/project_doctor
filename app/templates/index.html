@@ -1,8 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Hi, {{ user.username }}!</h1>
-    {% for post in posts %}
-    <div><p>{{ post.author.username }} says: <b>{{ post.body }}</b></p></div>
-    {% endfor %}
+<form>
+    <div class="row">
+        <div class="col">
+        <input type="text" class="form-control" placeholder="Номер полиса" aria-label="Номер полиса">
+        </div>
+        <div class="col">
+        <input type="text" class="form-control" placeholder="Дата рождения" aria-label="Дата рождения">
+        </div>
+    </div>
+</form>
 {% endblock %}
