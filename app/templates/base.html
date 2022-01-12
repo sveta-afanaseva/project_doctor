@@ -8,9 +8,8 @@
     </head>
     <body>
         <div>
-            Microblog: 
-            <a href="{{ url_for('index') }}">Home</a>
-            <a href="{{ url_for('login') }}">Login</a>
+            Меню: 
+            <a href="{{ url_for('get_oms') }}">Запись к врачу</a>
         </div>
         <hr>
         {% with messages = get_flashed_messages() %}

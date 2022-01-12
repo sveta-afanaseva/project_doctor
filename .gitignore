@@ -2,6 +2,7 @@
 *.drawio
 tmp.py
 migrate.py
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
