@@ -9,7 +9,13 @@
     <body>
         <div>
             Меню: 
-            <a href="{{ url_for('get_oms') }}">Запись к врачу</a>
+            <a href="{{ url_for('index') }}">Запись к врачу</a>
+            <a href="{{ url_for('register') }}">Регистрация</a>
+            {% if current_user.is_anonymous %}
+            <a href="{{ url_for('login') }}">Вход</a>
+            {% else %}
+            <a href="{{ url_for('logout') }}">Выход</a>
+            {% endif %}
         </div>
         <hr>
         {% with messages = get_flashed_messages() %}

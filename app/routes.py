@@ -1,17 +1,22 @@
 import re
 from flask import render_template, flash, redirect, url_for, request
 from app import app
-from app.forms import LoginForm
+from app.forms import LoginForm, RegistrationForm
+from app import db
 import requests
+from flask_login import current_user, login_user, logout_user, login_required
+from app.models import User
 
 
-@app.route("/", methods=["GET", "POST"])
-@app.route("/index", methods=["GET", "POST"])
-def get_oms():
+@app.route("/", methods=["GET"])
+@app.route("/index", methods=["GET"])
+@login_required
+def index():
     return render_template("index.html")
 
 
 @app.route("/specialities", methods=["POST"])
+@login_required
 def get_specialities():
     oms_number = request.json.get("oms_number")
     birth_date = request.json.get("birth_date") 
@@ -33,6 +38,7 @@ def get_specialities():
 
 
 @app.route("/doctors", methods=["POST"])
+@login_required
 def get_doctors():
     oms_number = request.json.get("oms_number")
     birth_date = request.json.get("birth_date") 
@@ -55,6 +61,7 @@ def get_doctors():
 
 
 @app.route("/shedule", methods=["POST"])
+@login_required
 def get_schedule():
     hospital_id = request.json.get("hospital_id")
     available_resource_id = request.json.get("available_resource_id")
@@ -110,14 +117,36 @@ def get_schedule():
 #     return str(shedule)
 
 
-# @app.route("/login", methods=["GET", "POST"])
-# def login():
-#     form = LoginForm()
-#     if form.validate_on_submit():
-#         flash(
-#             f"Login requested for user {form.username.data}, remember_me={form.remember_me.data}"
-#         )
-#         return redirect(url_for("index"))
-#     return render_template("login.html", title="Sign In", form=form)
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user is None or not user.check_password(form.password.data):
+            flash('Invalid email or password')
+            return redirect(url_for('login'))
+        login_user(user, remember=form.remember_me.data)
+        return redirect(url_for('index'))
+    return render_template('login.html', title='Sign In', form=form)
 
 
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(oms_number=form.oms_number.data, birth_date=form.birth_date.data, email=form.email.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Вы успешно зарегистрировались!')
+        return redirect(url_for('login'))
+    return render_template('register.html', title='Регистрация', form=form)
