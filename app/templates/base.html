@@ -8,13 +8,14 @@
     </head>
     <body>
         <div>
-            Меню: 
-            <a href="{{ url_for('index') }}">Запись к врачу</a>
-            <a href="{{ url_for('register') }}">Регистрация</a>
+            <div style="margin-right:20px;">Меню:</div>
+            <a style="margin-right:20px;" href="{{ url_for('index') }}">Запись к врачу</a>
+            <a  style="margin-right:20px;" href="{{ url_for('register') }}">Регистрация</a>
             {% if current_user.is_anonymous %}
-            <a href="{{ url_for('login') }}">Вход</a>
+            <a  style="margin-right:20px;" href="{{ url_for('login') }}">Вход</a>
             {% else %}
-            <a href="{{ url_for('logout') }}">Выход</a>
+            <a  style="margin-right:20px;" href="{{ url_for('logout') }}">Выход</a>
+            <a  style="margin-right:20px;" href="{{ url_for('user') }}">Личный кабинет</a>
             {% endif %}
         </div>
         <hr>

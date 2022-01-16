@@ -1,7 +1,8 @@
+from datetime import date
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, DateField
 from wtforms import validators
-from wtforms.validators import DataRequired, ValidationError, Email, EqualTo
+from wtforms.validators import DataRequired, ValidationError, Email, EqualTo, Length
 from app.models import User
 import email_validator
 
@@ -12,8 +13,9 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField("запомнить меня")
     submit = SubmitField("Войти")
 
+
 class RegistrationForm(FlaskForm):
-    oms_number = StringField('Полис ОМС', validators=[DataRequired()])
+    oms_number = StringField('Полис ОМС', validators=[DataRequired(), Length(16, 16)])
     birth_date = DateField('Дата рождения', validators=[DataRequired()])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Пароль', validators=[DataRequired()])
@@ -30,3 +32,12 @@ class RegistrationForm(FlaskForm):
         user = User.query.filter_by(email=email.data).first()
         if user is not None:
             raise ValidationError('Пользователь с таким е-мейлом уже существует')
+
+
+class EditProfileForm(FlaskForm):
+    oms_number = StringField('Полис ОМС', validators=[DataRequired(), Length(16, 16)])
+    birth_date = DateField('Дата рождения', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Пароль', validators=[DataRequired()])
+    password2 = PasswordField('Повторите пароль', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Сохранить изменения')

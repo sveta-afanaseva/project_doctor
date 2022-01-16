@@ -1,11 +1,11 @@
 import re
 from flask import render_template, flash, redirect, url_for, request
 from app import app
-from app.forms import LoginForm, RegistrationForm
+from app.forms import LoginForm, RegistrationForm, EditProfileForm
 from app import db
 import requests
 from flask_login import current_user, login_user, logout_user, login_required
-from app.models import User
+from app.models import Appointment, User
 
 
 @app.route("/", methods=["GET"])
@@ -150,3 +150,28 @@ def register():
         flash('Вы успешно зарегистрировались!')
         return redirect(url_for('login'))
     return render_template('register.html', title='Регистрация', form=form)
+
+
+@app.route('/user')
+@login_required
+def user():
+    return render_template('user.html', user=current_user, posts=current_user.appointments)
+
+
+@app.route('/edit_profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    form = EditProfileForm()
+    if form.validate_on_submit():
+        current_user.oms_number = form.oms_number.data
+        current_user.birth_date = form.birth_date.data
+        current_user.email = form.email.data
+        current_user.set_password(form.password.data)
+        db.session.commit()
+        flash('Изменения успешно сохранены.')
+        return redirect(url_for('edit_profile'))
+    elif request.method == 'GET':
+        form.oms_number.data = current_user.oms_number
+        form.birth_date.data = current_user.birth_date
+        form.email.data = current_user.email
+    return render_template('edit_profile.html', title='Изменить данные профиля', form=form)
