@@ -1,5 +1,7 @@
+from email.policy import default
 from enum import unique
 from datetime import datetime
+from venv import create
 from app import db
 from flask_login import UserMixin
 from app import login
@@ -35,6 +37,8 @@ class Appointment(db.Model):
     complex_resource_id = db.Column(db.Integer)
     start_time = db.Column(db.DateTime)
     end_time = db.Column(db.DateTime)
+    status = db.Column(db.Boolean, default=True, nullable=False)
+    created_date = db.Column(db.DateTime, default=datetime.now())
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
     def __repr__(self):
