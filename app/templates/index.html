@@ -1,14 +1,5 @@
 {% extends "base.html" %}
 
 {% block content %}
-<form>
-    <div class="row">
-        <div class="col">
-        <input type="text" class="form-control" placeholder="Номер полиса" aria-label="Номер полиса">
-        </div>
-        <div class="col">
-        <input type="text" class="form-control" placeholder="Дата рождения" aria-label="Дата рождения">
-        </div>
-    </div>
-</form>
+<h1>Привет, пользователь номер {{ current_user.id }}!</h1>
 {% endblock %}
