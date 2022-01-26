@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Новая запись</h1>
+<hr>
+<h2>Специальности</h2>
+<hr>
+    {% for specialist in specialities %}
+        <div style="margin-top:10px;">
+            <a href="/specialities/{{ specialist['speciality_id'] }}/doctors" 
+            class="btn btn-outline-primary" role="button">{{ specialist['name'] }}</a>
+        </div>
+    {% endfor %}
+{% endblock %}

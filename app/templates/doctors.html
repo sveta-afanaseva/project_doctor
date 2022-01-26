@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Новая запись</h1>
+<hr>
+<h2>Доктора</h2>
+<hr>
+    {% for doctor in doctors %}
+        <div style="margin-top:10px;">
+            <a href="{{ request.path }}/{{ doctor['hospital_id'] }}/{{ doctor['available_resource_id'] }}/schedule" 
+            class="btn btn-outline-primary" role="button">{{ doctor['name'] }}</a>
+        </div>
+    {% endfor %}
+{% endblock %}

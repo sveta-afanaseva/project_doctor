@@ -18,7 +18,7 @@ class User(UserMixin, db.Model):
 
     def __repr__(self) -> str:
         return f"<User {self.oms_number}>"
-        
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -33,13 +33,14 @@ def load_user(id):
 
 class Appointment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    available_resource_id = db.Column(db.Integer)
-    complex_resource_id = db.Column(db.Integer)
-    start_time = db.Column(db.DateTime)
-    end_time = db.Column(db.DateTime)
+    available_resource_id = db.Column(db.Integer, nullable=False)
+    speciality_id = db.Column(db.Integer, nullable=False)
+    doctor = db.Column(db.String, nullable=False)
+    start_time = db.Column(db.DateTime, nullable=False)
+    end_time = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.Boolean, default=True, nullable=False)
-    created_date = db.Column(db.DateTime, default=datetime.now())
+    created_date = db.Column(db.DateTime, default=datetime.now)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
     def __repr__(self):
-        return f"<Appointment {self.available_resource_id}>"
+        return f"<Appointment {self.doctor}>"
