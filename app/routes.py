@@ -1,7 +1,7 @@
 import atexit
 from datetime import datetime, time
+from pydoc import doc
 from cachetools import cached, TTLCache
-from email import message
 from email.message import EmailMessage
 from functools import wraps
 import smtplib, ssl
@@ -19,7 +19,12 @@ from app.models import Appointment, User
 from config import EMAIL_ADDRESS, EMAIL_PASSWORD
 
 
+context = ssl.create_default_context()
+
+
 def check_error(r):
+    if not r.ok:
+        raise ValueError('ЕМИАС временно недоступен')
     if "error" in r.json():
         message = r.json()["error"]["message"]
         raise ValueError(message)
@@ -91,6 +96,7 @@ def get_doctors(speciality_id):
             "name": result["name"],
         }
         for result in results
+        if get_schedule(result["lpuId"], result["id"])[0]
     ]
     return render_template("doctors.html", doctors=doctors)
 
@@ -100,34 +106,38 @@ def get_doctors(speciality_id):
     methods=["GET", "POST"],
 )
 @login_required
+@error_decorator
 def schedule(speciality_id, hospital_id, available_resource_id):
     doctor, current_schedule = get_schedule(hospital_id, available_resource_id)
     form = AppointmentForm(doctor=doctor)
     form.date.choices = [(row["date"], row["date"]) for row in current_schedule]
-    for row in current_schedule:
-        if row["date"] == form.date.choices[0][0]:
-            time_arrangement = create_time_arrangement(row["time_interval"])
-            form.start_time.choices = time_arrangement
-            form.end_time.choices = time_arrangement
 
-    if form.validate_on_submit():
-        start_time_string = f"{form.date.data} {form.start_time.data}"
-        end_time_string = f"{form.date.data} {form.end_time.data}"
-        create_appointment(
-            available_resource_id=available_resource_id,
-            speciality_id=speciality_id,
-            doctor=doctor,
-            start_time=datetime.strptime(start_time_string, "%Y-%m-%d %H:%M"),
-            end_time=datetime.strptime(end_time_string, "%Y-%m-%d %H:%M"),
-        )
-        return redirect(url_for("get_specialities"))
+    if request.method == 'GET':
+        for row in current_schedule:
+            if row["date"] == form.date.choices[0][0]:
+                time_arrangement = create_time_arrangement(row["time_interval"])
+                form.start_time.choices = time_arrangement
+                form.end_time.choices = time_arrangement
 
-    return render_template("schedule.html", form=form)
+        return render_template("schedule.html", form=form)
+    else:
+        form.start_time.choices = [(form.start_time.data, form.start_time.data), (form.end_time.data, form.end_time.data)]
+        form.end_time.choices = [(form.start_time.data, form.start_time.data), (form.end_time.data, form.end_time.data)]
+        if form.validate_on_submit():
+            start_time_string = f"{form.date.data} {form.start_time.data}"
+            end_time_string = f"{form.date.data} {form.end_time.data}"
+            create_appointment(
+                available_resource_id=available_resource_id,
+                speciality_id=speciality_id,
+                doctor=doctor,
+                start_time=datetime.strptime(start_time_string, "%Y-%m-%d %H:%M"),
+                end_time=datetime.strptime(end_time_string, "%Y-%m-%d %H:%M"),
+            )
+            return redirect(url_for("get_specialities"))
 
 
 @cached(cache=TTLCache(ttl=3600, maxsize=100))
-@error_decorator
-def get_schedule(hospital_id, available_resource_id):
+def schedule_request(hospital_id):
     r = requests.post(
         "https://emias.info/api/new/eip",
         json={
@@ -138,8 +148,13 @@ def get_schedule(hospital_id, available_resource_id):
         },
     )
     check_error(r)
-    results = r.json()["result"]["availableResource"]
+    return r.json()["result"]["availableResource"]
+
+
+def get_schedule(hospital_id, available_resource_id):
+    results = schedule_request(hospital_id)
     schedule = []
+    doctor = None
     for result in results:
         if str(available_resource_id) == result["id"]:
             doctor = result["name"]
@@ -191,7 +206,6 @@ def create_appointment(
     flash("Ваша заявка принята! Ждите уведомления на почту.")
 
 
-@error_decorator
 def scheduler():
     appointments = Appointment.query.filter(Appointment.status == True).all()
     for appointment in appointments:
@@ -208,7 +222,8 @@ def scheduler():
                 },
             },
         )
-        check_error(r)
+        if not r.ok or ("error" in r.json()):
+            continue
         results = r.json()["result"]
         for result in results:
             if result["id"] == appointment.available_resource_id:
@@ -223,15 +238,14 @@ def scheduler():
                     for time_slot in schedule:
                         if (
                             appointment.start_time <= time_slot <= appointment.end_time
-                        ) and (appointment.status == True):
+                        ) and appointment.status:
                             appointment.status = False
-                            text = f"Появилась доступная запись. Проверьте на сайте ЕМИАС.\nЗапись: {appointment.doctor}  {time_slot}"
+                            text = f"Появилась доступная запись. Проверьте на сайте ЕМИАС.\nЗапись: {appointment.doctor}\t{time_slot}"
                             msg = EmailMessage()
                             msg["Subject"] = "Новая запись"
                             msg["From"] = "kharitonova.si16@physics.msu.ru"
                             msg["To"] = appointment.user.email
                             msg.set_content(text)
-                            context = ssl.create_default_context()
                             with smtplib.SMTP_SSL(
                                 "smtp.gmail.com", 465, context=context
                             ) as server:
@@ -272,7 +286,7 @@ def get_available_schedule(
 
 
 sched = BackgroundScheduler()
-sched.add_job(func=scheduler, trigger="interval", minutes=10)
+sched.add_job(func=scheduler, trigger="interval", minutes=2)
 sched.start()
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: sched.shutdown())
@@ -340,6 +354,7 @@ def edit_profile():
         flash("Изменения успешно сохранены.")
         return redirect(url_for("edit_profile"))
     elif request.method == "GET":
+        form.oms_number.default = current_user.oms_number
         form.oms_number.data = current_user.oms_number
         form.birth_date.data = current_user.birth_date
         form.email.data = current_user.email

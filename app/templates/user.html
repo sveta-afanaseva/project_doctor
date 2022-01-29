@@ -3,7 +3,7 @@
 {% block content %}
 <div class="row align-items-start">
     <div class="col-5"><h3>Полис ОМС</h3></div>
-    <div class="col-5"><h3>{{ user.oms_number }}</h3></div>
+    <div class="col-5"><h3>{{ user.oms_number[:4:] }} **** **** {{ user.oms_number[-4::] }}</h3></div>
 </div><hr>
 <div class="row align-items-start">
     <div class="col-5"><h3>Дата рождения</h3></div>
@@ -12,11 +12,11 @@
 <div class="row align-items-start">
     <div class="col-5"><h3>Email</h3></div>
     <div class="col-5"><h3>{{ user.email }}</h3></div>
-</div><hr>
+</div><br>
     {% if user == current_user %}
-    <p><a href="{{ url_for('edit_profile') }}">Изменить данные профиля</a></p>
+    <p><a href="{{ url_for('edit_profile') }}" class="btn btn-secondary" role="button">Изменить данные профиля</a></p>
     {% endif %}
-    <hr>
+    <br>
     <h2>Мои записи:</h2>
     <hr> 
         <div class="row align-items-start">
@@ -31,7 +31,7 @@
             <div class="col-3"><b>{{ appointment.doctor }}</b></div>
             <div class="col-2">{{ appointment.start_time.strftime('%d.%m.%Y') }}</div>
             <div class="col-2">{{ appointment.start_time.strftime('%H:%M') }} - {{ appointment.end_time.strftime('%H:%M') }}</div>
-            <div class="col"><a href='/delete/{{ appointment.id }}'>Удалить</a></div>
+            <div class="col"><a href='/delete/{{ appointment.id }}' class="btn-close" role="button" aria-label="Удалить"></a></div>
         </div>
         {% endfor %}
 {% endblock %}
