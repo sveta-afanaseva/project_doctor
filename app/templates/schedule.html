@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Новая запись</h1>
+<hr>
+<h2>Выберите дату и время:</h2>
+<hr>
+<form action="" method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <p>
+        {{ form.doctor.label }}<br>
+        {{ form.doctor(size=32) }}<br>
+        {% for error in form.doctor.errors %}
+        <span style="color: red;">[{{ error }}]</span>
+        {% endfor %}
+    </p>
+    <p>
+        {{ form.date.label }}<br>
+        {{ form.date }}<br>
+    </p>
+    <p>
+        {{ form.start_time.label }}<br>
+        {{ form.start_time }}<br>
+    </p>
+    <p>
+        {{ form.end_time.label }}<br>
+        {{ form.end_time }}<br>
+    </p>
+    <p>{{ form.submit() }}</p>
+</form>
+<script>
+    let date_select = document.getElementById('date');
+    let start_time_select = document.getElementById('start_time');
+    let end_time_select = document.getElementById('end_time');
+
+    date_select.onchange = () => {
+        let date = date_select.value;
+        fetch(`{{ request.path }}/current_available_time?date=${date}`).then((response) => {
+            response.json().then((data) => {
+                let optionHTML = '';
+
+                for (let time of data) {
+                    optionHTML += `<option value=${time}>${time}</option>`;
+                }
+
+                start_time_select.innerHTML = optionHTML;
+                end_time_select.innerHTML = optionHTML;
+            })
+        })
+    }
+</script>
+{% endblock %}

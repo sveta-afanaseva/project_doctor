@@ -1,18 +1,37 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Полис ОМС: {{ user.oms_number }}</h1>
-    <hr>
-    <h1>Дата рождения: {{ user.birth_date }}</h1>
-    <hr>
-    <h1>Email: {{ user.email }}</h1>
-    <hr>
+<div class="row align-items-start">
+    <div class="col-5"><h3>Полис ОМС</h3></div>
+    <div class="col-5"><h3>{{ user.oms_number[:4:] }} **** **** {{ user.oms_number[-4::] }}</h3></div>
+</div><hr>
+<div class="row align-items-start">
+    <div class="col-5"><h3>Дата рождения</h3></div>
+    <div class="col-5"><h3>{{ user.birth_date.strftime('%d.%m.%Y') }}</h3></div>
+</div><hr>
+<div class="row align-items-start">
+    <div class="col-5"><h3>Email</h3></div>
+    <div class="col-5"><h3>{{ user.email }}</h3></div>
+</div><br>
     {% if user == current_user %}
-    <p><a href="{{ url_for('edit_profile') }}">Изменить данные профиля</a></p>
+    <p><a href="{{ url_for('edit_profile') }}" class="btn btn-secondary" role="button">Изменить данные профиля</a></p>
     {% endif %}
-    {% for appointment in appointments %}
-    <p>
-    <b>{{ appointment.start_time }}</b>
-    </p>
-    {% endfor %}
+    <br>
+    <h2>Мои записи:</h2>
+    <hr> 
+        <div class="row align-items-start">
+            <div class="col-3"><b>Врач</b></div>
+            <div class="col-2"><b>Дата</b></div>
+            <div class="col-2"><b>Время</b></div>
+            <div class="col"></div>
+        </div>
+        <hr>
+        {% for appointment in appointments %}
+        <div class="row align-items-start">
+            <div class="col-3"><b>{{ appointment.doctor }}</b></div>
+            <div class="col-2">{{ appointment.start_time.strftime('%d.%m.%Y') }}</div>
+            <div class="col-2">{{ appointment.start_time.strftime('%H:%M') }} - {{ appointment.end_time.strftime('%H:%M') }}</div>
+            <div class="col"><a href='/delete/{{ appointment.id }}' class="btn-close" role="button" aria-label="Удалить"></a></div>
+        </div>
+        {% endfor %}
 {% endblock %}
