@@ -1,11 +1,13 @@
+from datetime import datetime
+
 from email.policy import default
 from enum import unique
-from datetime import datetime
-from venv import create
-from app import db
 from flask_login import UserMixin
-from app import login
 from werkzeug.security import generate_password_hash, check_password_hash
+
+from app import db
+from app import login
+from venv import create
 
 
 class User(UserMixin, db.Model):
@@ -43,4 +45,4 @@ class Appointment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
     def __repr__(self):
-        return f"<Appointment {self.doctor}>"
+        return f"<Appointment {self.doctor} {self.start_time}-{self.end_time}>"

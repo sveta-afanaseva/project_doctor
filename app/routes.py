@@ -1,33 +1,23 @@
 import atexit
 from datetime import datetime, time
 from pydoc import doc
-from cachetools import cached, TTLCache
-from email.message import EmailMessage
 from functools import wraps
-import smtplib, ssl
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import jsonify, render_template, flash, redirect, url_for, request
 from flask_login import current_user, login_user, logout_user, login_required
-import requests
 
 from app import app
 from app import db
 from app import forms
+from app.emias_api import (
+    get_specialities_info,
+    get_doctors_info,
+    schedule_request
+)
 from app.forms import LoginForm, RegistrationForm, EditProfileForm, AppointmentForm
+from app.job import scheduler
 from app.models import Appointment, User
-from config import EMAIL_ADDRESS, EMAIL_PASSWORD
-
-
-context = ssl.create_default_context()
-
-
-def check_error(r):
-    if not r.ok:
-        raise ValueError('ЕМИАС временно недоступен')
-    if "error" in r.json():
-        message = r.json()["error"]["message"]
-        raise ValueError(message)
 
 
 def error_decorator(func):
@@ -41,27 +31,13 @@ def error_decorator(func):
     return wrapper
 
 
-@app.route("/", methods=["GET", "POST"])
 @app.route("/specialities", methods=["GET", "POST"])
 @login_required
 @error_decorator
 def get_specialities():
     if not current_user.oms_number or not current_user.birth_date:
         return {"error": "Не передан номер ОМС или дата рождения"}
-    r = requests.post(
-        "https://emias.info/api/new/eip5orch?getSpecialitiesInfo",
-        json={
-            "jsonrpc": "2.0",
-            "id": "",
-            "method": "getSpecialitiesInfo",
-            "params": {
-                "omsNumber": current_user.oms_number,
-                "birthDate": current_user.birth_date.strftime("%Y-%m-%d"),
-            },
-        },
-    )
-    check_error(r)
-    results = r.json()["result"]
+    results = get_specialities_info(current_user.oms_number, current_user.birth_date)
     specialities = [
         {"speciality_id": result["code"], "name": result["name"]} for result in results
     ]
@@ -74,21 +50,9 @@ def get_specialities():
 def get_doctors(speciality_id):
     if not current_user.oms_number or not current_user.birth_date:
         return {"error": "Не передан номер ОМС или дата рождения"}
-    r = requests.post(
-        "https://emias.info/api/new/eip5orch?getDoctorsInfo",
-        json={
-            "jsonrpc": "2.0",
-            "id": "",
-            "method": "getDoctorsInfo",
-            "params": {
-                "omsNumber": current_user.oms_number,
-                "birthDate": current_user.birth_date.strftime("%Y-%m-%d"),
-                "specialityId": str(speciality_id),
-            },
-        },
+    results = get_doctors_info(
+        current_user.oms_number, current_user.birth_date, speciality_id
     )
-    check_error(r)
-    results = r.json()["result"]
     doctors = [
         {
             "hospital_id": result["lpuId"],
@@ -112,7 +76,7 @@ def schedule(speciality_id, hospital_id, available_resource_id):
     form = AppointmentForm(doctor=doctor)
     form.date.choices = [(row["date"], row["date"]) for row in current_schedule]
 
-    if request.method == 'GET':
+    if request.method == "GET":
         for row in current_schedule:
             if row["date"] == form.date.choices[0][0]:
                 time_arrangement = create_time_arrangement(row["time_interval"])
@@ -121,8 +85,14 @@ def schedule(speciality_id, hospital_id, available_resource_id):
 
         return render_template("schedule.html", form=form)
     else:
-        form.start_time.choices = [(form.start_time.data, form.start_time.data), (form.end_time.data, form.end_time.data)]
-        form.end_time.choices = [(form.start_time.data, form.start_time.data), (form.end_time.data, form.end_time.data)]
+        form.start_time.choices = [
+            (form.start_time.data, form.start_time.data),
+            (form.end_time.data, form.end_time.data),
+        ]
+        form.end_time.choices = [
+            (form.start_time.data, form.start_time.data),
+            (form.end_time.data, form.end_time.data),
+        ]
         if form.validate_on_submit():
             start_time_string = f"{form.date.data} {form.start_time.data}"
             end_time_string = f"{form.date.data} {form.end_time.data}"
@@ -134,21 +104,6 @@ def schedule(speciality_id, hospital_id, available_resource_id):
                 end_time=datetime.strptime(end_time_string, "%Y-%m-%d %H:%M"),
             )
             return redirect(url_for("get_specialities"))
-
-
-@cached(cache=TTLCache(ttl=3600, maxsize=100))
-def schedule_request(hospital_id):
-    r = requests.post(
-        "https://emias.info/api/new/eip",
-        json={
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "get_lpu_schedule_info",
-            "params": {"lpu_id": hospital_id},
-        },
-    )
-    check_error(r)
-    return r.json()["result"]["availableResource"]
 
 
 def get_schedule(hospital_id, available_resource_id):
@@ -206,85 +161,6 @@ def create_appointment(
     flash("Ваша заявка принята! Ждите уведомления на почту.")
 
 
-def scheduler():
-    appointments = Appointment.query.filter(Appointment.status == True).all()
-    for appointment in appointments:
-        r = requests.post(
-            "https://emias.info/api/new/eip5orch?getDoctorsInfo",
-            json={
-                "jsonrpc": "2.0",
-                "id": "",
-                "method": "getDoctorsInfo",
-                "params": {
-                    "omsNumber": appointment.user.oms_number,
-                    "birthDate": appointment.user.birth_date.strftime("%Y-%m-%d"),
-                    "specialityId": appointment.speciality_id,
-                },
-            },
-        )
-        if not r.ok or ("error" in r.json()):
-            continue
-        results = r.json()["result"]
-        for result in results:
-            if result["id"] == appointment.available_resource_id:
-                if result["complexResource"]:
-                    complex_resource_id = result["complexResource"][0]["id"]
-                    schedule = get_available_schedule(
-                        oms_number=appointment.user.oms_number,
-                        birth_date=appointment.user.birth_date,
-                        available_resource_id=appointment.available_resource_id,
-                        complex_resource_id=complex_resource_id,
-                    )
-                    for time_slot in schedule:
-                        if (
-                            appointment.start_time <= time_slot <= appointment.end_time
-                        ) and appointment.status:
-                            appointment.status = False
-                            text = f"Появилась доступная запись. Проверьте на сайте ЕМИАС.\nЗапись: {appointment.doctor}\t{time_slot}"
-                            msg = EmailMessage()
-                            msg["Subject"] = "Новая запись"
-                            msg["From"] = "kharitonova.si16@physics.msu.ru"
-                            msg["To"] = appointment.user.email
-                            msg.set_content(text)
-                            with smtplib.SMTP_SSL(
-                                "smtp.gmail.com", 465, context=context
-                            ) as server:
-                                server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                                server.send_message(msg)
-                                server.quit()
-                            db.session.commit()
-
-
-@error_decorator
-def get_available_schedule(
-    oms_number, birth_date, available_resource_id, complex_resource_id
-):
-    r = requests.post(
-        "https://emias.info/api/new/eip5orch?getAvailableResourceScheduleInfo",
-        json={
-            "jsonrpc": "2.0",
-            "id": "",
-            "method": "getAvailableResourceScheduleInfo",
-            "params": {
-                "omsNumber": oms_number,
-                "birthDate": str(birth_date),
-                "availableResourceId": str(available_resource_id),
-                "complexResourceId": str(complex_resource_id),
-            },
-        },
-    )
-    check_error(r)
-    results = r.json()["result"]["scheduleOfDay"]
-    schedule = []
-    for result in results:
-        for slot in result["scheduleBySlot"][0]["slot"]:
-            start_available_time = datetime.strptime(
-                slot["startTime"], "%Y-%m-%dT%H:%M:%S%z"
-            ).replace(tzinfo=None)
-            schedule.append(start_available_time)
-    return schedule
-
-
 sched = BackgroundScheduler()
 sched.add_job(func=scheduler, trigger="interval", minutes=2)
 sched.start()
@@ -292,6 +168,7 @@ sched.start()
 atexit.register(lambda: sched.shutdown())
 
 
+@app.route("/", methods=["GET", "POST"])
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -310,7 +187,7 @@ def login():
 @app.route("/logout")
 def logout():
     logout_user()
-    return redirect(url_for("get_specialities"))
+    return redirect(url_for("login"))
 
 
 @app.route("/register", methods=["GET", "POST"])
